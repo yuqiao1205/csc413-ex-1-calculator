@@ -1,78 +1,118 @@
-import java.util.*;
+import com.yp.cs413.calculator.operator.common.LeftBracket;
+import com.yp.cs413.calculator.operator.common.RightBracket;
+
+import com.yp.cs413.calculator.operator.arithmetic.ArithmeticOperator;
+import com.yp.cs413.calculator.operand.Operand;
+import com.yp.cs413.calculator.operator.common.Operator;
+import com.yp.cs413.calculator.operator.common.StartOperator;
+
+import java.util.Stack;
+import java.util.StringTokenizer;
 
 public class Evaluator {
-  private Stack<Operand> operandStack;
-  private Stack<Operator> operatorStack;
+    private final Stack<Operand> operandStack;
+    private final Stack<Operator> operatorStack;
 
-  private StringTokenizer tokenizer;
-  private static final String DELIMITERS = "+-*^/() ";
+    private static final String DELIMITERS = "+-*^/() ";
 
-  public Evaluator() {
-    operandStack = new Stack<>();
-    operatorStack = new Stack<>();
-  }
-
-  public int eval( String expression ) {
-    String token;
-
-    // The 3rd argument is true to indicate that the delimiters should be used
-    // as tokens, too. But, we'll need to remember to filter out spaces.
-    this.tokenizer = new StringTokenizer( expression, DELIMITERS, true );
-
-    // initialize operator stack - necessary with operator priority schema
-    // the priority of any operator in the operator stack other than
-    // the usual mathematical operators - "+-*/" - should be less than the priority
-    // of the usual operators
-
-    // TODO Operator is abstract - this will need to be fixed:
-    // operatorStack.push( new Operator( "#" ));
-
-    while ( this.tokenizer.hasMoreTokens() ) {
-      // filter out spaces
-      if ( !( token = this.tokenizer.nextToken() ).equals( " " )) {
-        // check if token is an operand
-        if ( Operand.check( token )) {
-          operandStack.push( new Operand( token ));
-        } else {
-          if ( ! Operator.check( token )) {
-            System.out.println( "*****invalid token******" );
-            System.exit( 1 );
-          }
-
-          // TODO Operator is abstract - this line will need to be fixed:
-          // ( The Operator class should contain an instance of a HashMap,
-          // and values will be instances of the Operators.  See Operator class
-          // skeleton for an example. )
-          Operator newOperator = new Operator( token );
-
-          while ( operatorStack.peek().priority() >= newOperator.priority() ) {
-            // note that when we eval the expression 1 - 2 we will
-            // push the 1 then the 2 and then do the subtraction operation
-            // This means that the first number to be popped is the
-            // second operand, not the first operand - see the following code
-            Operator oldOpr = operatorStack.pop();
-            Operand op2 = operandStack.pop();
-            Operand op1 = operandStack.pop();
-            operandStack.push( oldOpr.execute( op1, op2 ));
-          }
-
-          operatorStack.push( newOperator );
-        }
-      }
+    public Evaluator() {
+        operandStack = new Stack<>();
+        operatorStack = new Stack<>();
     }
 
-    // Control gets here when we've picked up all of the tokens; you must add
-    // code to complete the evaluation - consider how the code given here
-    // will evaluate the expression 1+2*3
-    // When we have no more tokens to scan, the operand stack will contain 1 2
-    // and the operator stack will have + * with 2 and * on the top;
-    // In order to complete the evaluation we must empty the stacks (except
-    // the init operator on the operator stack); that is, we should keep
-    // evaluating the operator stack until empty
-    // Suggestion: create a method that takes an operator as argument and
-    // then executes the while loop; also, move the stacks out of the main
-    // method
+    public int eval(String expression) {
+        initializeStacks();
 
-    return 0;
-  }
+        parseExpression(expression);
+
+        processRemainingOperators();
+
+        return operandStack.peek().getValue();
+    }
+
+    private void parseExpression(String expression) {
+        String token;
+        StringTokenizer tokenizer = new StringTokenizer(expression, DELIMITERS, true);
+
+        while (tokenizer.hasMoreTokens()) {
+            // Filter out spaces
+            token = tokenizer.nextToken();
+
+            if (!token.equals(" ")) {
+                // Check if token is an com.yp.cs413.calculator.operand
+                processToken(token);
+            }
+        }
+    }
+
+    private void processToken(String token) {
+        if (Operand.check(token)) {
+            operandStack.push(new Operand(token));
+        } else if (Operator.check(token)) {
+            processOperator(token);
+        } else {
+            System.out.println("***** invalid token *****");
+            System.exit(1);
+        }
+    }
+
+    private void processOperator(String token) {
+        Operator newOperator = Operator.lookUp(token);
+
+        while (operatorStack.peek().priority() >= newOperator.priority()
+                && !(newOperator instanceof LeftBracket)) {
+            process();
+        }
+
+        operatorStack.push(newOperator);
+
+        if (newOperator instanceof RightBracket) {
+            evalUntilMatchingLeftBracket();
+        }
+    }
+
+    private void processRemainingOperators() {
+        while (!operatorStack.isEmpty()) {
+            Operator operator = operatorStack.peek();
+
+            if (operator instanceof StartOperator) {
+                operatorStack.pop();
+            } else if (operator instanceof ArithmeticOperator) {
+                process();
+            } else {
+                throw new UnsupportedOperationException("Unexpected com.yp.cs413.calculator.operator");
+            }
+        }
+    }
+
+    private void initializeStacks() {
+        operandStack.clear();
+        operatorStack.clear();
+
+        operatorStack.push(new StartOperator());
+    }
+
+    private void process() {
+        Operator operator = operatorStack.pop();
+
+        Operand secondOperand = operandStack.pop();
+        Operand firstOperand = operandStack.pop();
+
+        operandStack.push(operator.execute(firstOperand, secondOperand));
+    }
+
+    private void evalUntilMatchingLeftBracket() {
+        // 1. Discard the right bracket
+        operatorStack.pop();
+
+        // 2. Evaluate stack top until the matching left bracket is met
+        Operator operator;
+        do {
+            process();
+            operator = operatorStack.peek();
+        } while (!(operator instanceof LeftBracket));
+
+        // 3. Discard the left bracket
+        operatorStack.pop();
+    }
 }
