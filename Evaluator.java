@@ -39,7 +39,6 @@ public class Evaluator {
             token = tokenizer.nextToken();
 
             if (!token.equals(" ")) {
-                // Check if token is an com.yp.cs413.calculator.operand
                 processToken(token);
             }
         }
