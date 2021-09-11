@@ -79,7 +79,7 @@ public class Evaluator {
             } else if (operator instanceof ArithmeticOperator) {
                 process();
             } else {
-                throw new UnsupportedOperationException("Unexpected com.yp.cs413.calculator.operator");
+                throw new UnsupportedOperationException("Unexpected operator");
             }
         }
     }
